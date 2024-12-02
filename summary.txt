@@ -1,0 +1,18 @@
+1. Why did you choose the tools, libraries, and language you used for the coding exercise?
+I chose Python, Flask and SQLAlchemy for this task. Because Python has built-in JSON support and simplifies handling API interactions, Flask is a lightweight, flexible framework and can be used with any database like:- SQL and NoSQL and with any Frontend Technology such as React or Angular, which makes it great for this small project that only tacks a single user's points transactions. SQLAlchemy simplifies database interactions by mapping Python objects to database tables. I don’t need to write raw SQL queries for most operations, making the code cleaner and more intuitive. Given that we may need to support multiple users to track their points transactions in the future, a relational database can easily scale the application to support multiple users in the future. With relational databases, adding new users is straightforward. We can add a user_id or user_account field to the Transaction model to track transactions per user. This is easy to implement in SQL with SQLAlchemy’s ORM features.
+
+2. What are the advantages and disadvantages of your solution?
+- Advantages
+    - The solution can handle concurrency safely by using SQLAlchemy’s transaction management with nested transactions and row-level locking. 
+    - The solution can protect the API from abuse by rate-limiting through the token bucket algorithm. 
+- Disadvantages
+    - The code lacks modularity, which could make future scaling and maintenance challenging.
+    - The code lacks user authentication and authorization. The solution assumes a single user.  If multiple users were added, there’s no authentication or authorization in place to secure access to their points data.
+
+3. What has been a favorite school/personal project thus far? What about it that challenged you?
+- Project Introduction: The 2D Heat Conduction Simulator models heat distribution in materials by updating the temperature at each point based on the average of its four adjacent points. The goal is to efficiently compute heat distribution on large matrices. 
+
+- Challenges: 
+    - Finding a Parallel Computing Pattern: The main challenge was determining a suitable parallel computing approach to optimize performance. The solution was to apply a red-black parallelization scheme, which effectively divides the grid into two sets (red and black points) that can be updated independently in alternating steps. Then points with the same color can be calculated in a parallel fashion. 
+
+    - Identifying Performance Bottlenecks (Memory Access): A significant performance bottleneck was inefficient memory access, leading to cache misses. To mitigate this, I reorganized the data storage by separating the red and black points into different memory regions, improving cache locality and reducing cache miss rates.

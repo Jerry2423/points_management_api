@@ -22,6 +22,11 @@ tokens = CAPACITY
 last_request_time = time.time()
 lock = threading.Lock()
 
+HTTP_OK = 200
+HTTP_BAD_REQUEST = 400
+HTTP_TOO_MANY_REQUESTS = 429
+HTTP_INTERNAL_SERVER_ERROR = 500
+
 def token_bucket():
     global tokens, last_request_time
     current_time = time.time()
@@ -40,7 +45,7 @@ def token_bucket():
 @app.before_request
 def check_rate_limit():
     if not token_bucket():
-        return jsonify({"error": "Rate limit exceeded"}), 429
+        return jsonify({"error": "Rate limit exceeded"}), HTTP_TOO_MANY_REQUESTS
 
 # Define the Transaction model
 class Transaction(db.Model):
@@ -81,13 +86,13 @@ def add_points():
 
     # Validate request data
     if not all(key in data for key in ('payer', 'points', 'timestamp')):
-        return jsonify({"error": "Invalid request body"}), 400
+        return jsonify({"error": "Invalid request body"}), HTTP_BAD_REQUEST
 
     try:
         timestamp = datetime.fromisoformat(
             data['timestamp'].replace("Z", "+00:00"))
     except ValueError:
-        return jsonify({"error": "Invalid timestamp format"}), 400
+        return jsonify({"error": "Invalid timestamp format"}), HTTP_BAD_REQUEST
 
     try:
         # Begin a nested transaction to handle concurrency
@@ -106,12 +111,12 @@ def add_points():
         db.session.commit()
     except ValueError as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), HTTP_BAD_REQUEST
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"error": "Database error", "details": str(e)}), 500
+        return jsonify({"error": "Database error", "details": str(e)}), HTTP_BAD_REQUEST
 
-    return '', 200
+    return '', HTTP_OK
 
 
 @app.route('/spend', methods=['POST'])
@@ -120,7 +125,7 @@ def spend_points():
 
     # Validate the request body
     if 'points' not in data or not isinstance(data['points'], int):
-        return "Invalid request body", 400
+        return "Invalid request body", HTTP_BAD_REQUEST
 
     points_to_spend = data['points']
     try:
@@ -130,12 +135,12 @@ def spend_points():
         db.session.commit()
     except ValueError as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+        return jsonify({"error": str(e)}), HTTP_BAD_REQUEST
     except SQLAlchemyError as e:
         db.session.rollback()
-        return jsonify({"error": "Database error", "details": str(e)}), 500
+        return jsonify({"error": "Database error", "details": str(e)}), HTTP_BAD_REQUEST
 
-    return jsonify(spent_points), 200
+    return jsonify(spent_points), HTTP_OK
 
 
 def deduct_point(points_to_spend):
@@ -200,7 +205,7 @@ def get_balance():
 
     response = {payer: balance for payer, balance in balances}
 
-    return jsonify(response), 200
+    return jsonify(response), HTTP_OK
 
 
 if __name__ == "__main__":
