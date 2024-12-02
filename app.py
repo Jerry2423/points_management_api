@@ -1,7 +1,9 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify 
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
+import time
+import threading
 
 app = Flask(__name__)
 
@@ -12,6 +14,32 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# Token Bucket Algorithm settings
+RATE_LIMIT = 5  # requests per second
+CAPACITY = 10   # maximum burst capacity
+tokens = CAPACITY
+last_request_time = time.time()
+lock = threading.Lock()
+
+def token_bucket():
+    global tokens, last_request_time
+    current_time = time.time()
+    with lock:
+        # Add tokens at the rate of RATE_LIMIT per second
+        tokens += (current_time - last_request_time) * RATE_LIMIT
+        if tokens > CAPACITY:
+            tokens = CAPACITY
+        last_request_time = current_time
+        if tokens >= 1:
+            tokens -= 1
+            return True
+        else:
+            return False
+
+@app.before_request
+def check_rate_limit():
+    if not token_bucket():
+        return jsonify({"error": "Rate limit exceeded"}), 429
 
 # Define the Transaction model
 class Transaction(db.Model):
