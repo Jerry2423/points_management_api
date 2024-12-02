@@ -70,6 +70,26 @@ Start the Flask development server:
 python3 app.py
 ```
 
+The application allows customization of rate-limiting settings through command-line arguments using the Token Bucket Algorithm. Below are the available options:
+
+1. `--rate_limit`:
+
+   1. Defines the number of requests allowed per second.
+   2. Default value: `5`.
+
+2. `--capacity`:
+
+   1. Specifies the maximum burst capacity of requests allowed.
+   2. Default value: `10`.
+
+3. Example Usage:
+
+   1. To run the application with a custom rate limit of 10 requests per second and a capacity of 20 requests: 
+
+      ```bash
+      python3 app.py --rate_limit 10 --capacity 20
+      ```
+
 ### 6. Testing the API
 
 You can use tools like [Postman](https://www.postman.com/) or `curl` to test the endpoints.
@@ -87,7 +107,7 @@ You can use tools like [Postman](https://www.postman.com/) or `curl` to test the
       ```
 
    2. ```bash
-       curl -X POST -H "Content-Type: application/json" -d '{
+      curl -X POST -H "Content-Type: application/json" -d '{
            "payer": "UNILEVER",
            "points": 200,
            "timestamp": "2022-10-31T11:00:00Z"
