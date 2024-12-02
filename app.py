@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 import time
 import threading
+import argparse
 
 app = Flask(__name__)
 
@@ -203,4 +204,14 @@ def get_balance():
 
 
 if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Token Bucket Rate Limiting')
+    parser.add_argument('--rate_limit', type=int, default=5, help='Requests per second')
+    parser.add_argument('--capacity', type=int, default=10, help='Maximum burst capacity')
+    args = parser.parse_args()
+
+    # Set the Token Bucket Algorithm settings
+    RATE_LIMIT = args.rate_limit
+    CAPACITY = args.capacity
+    tokens = CAPACITY
     app.run(port=8000)
