@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+from sqlalchemy.exc import SQLAlchemyError
 
 app = Flask(__name__)
 
@@ -59,21 +60,27 @@ def add_points():
     except ValueError:
         return jsonify({"error": "Invalid timestamp format"}), 400
 
-    if data['points'] < 0:
-        try:
-            deduct_point(abs(data['points']))
-        except ValueError as e:
-            return jsonify({"error": str(e)}), 400
+    try:
+        # Begin a nested transaction to handle concurrency
+        with db.session.begin_nested():
+            if data['points'] < 0:
+                deduct_point(abs(data['points']))
 
-    transaction = Transaction(
-        payer=data['payer'],
-        points=data['points'],
-        # Edge case: unspent points cannot be negative
-        unspent_points=max(0, data['points']),
-        timestamp=timestamp
-    )
-    db.session.add(transaction)
-    db.session.commit()
+            transaction = Transaction(
+                payer=data['payer'],
+                points=data['points'],
+                # Edge case: unspent points cannot be negative
+                unspent_points=max(0, data['points']),
+                timestamp=timestamp
+            )
+            db.session.add(transaction)
+        db.session.commit()
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
 
     return '', 200
 
@@ -88,9 +95,16 @@ def spend_points():
 
     points_to_spend = data['points']
     try:
-        spent_points = deduct_point(points_to_spend)
+        # Begin a nested transaction to handle concurrency
+        with db.session.begin_nested():
+            spent_points = deduct_point(points_to_spend)
+        db.session.commit()
     except ValueError as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 400
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": "Database error", "details": str(e)}), 500
 
     return jsonify(spent_points), 200
 
@@ -119,8 +133,10 @@ def deduct_point(points_to_spend):
         raise ValueError("Insufficient points")
 
     # Spend points (oldest first)
-    transactions = Transaction.query.filter(
-        Transaction.unspent_points > 0).order_by(Transaction.timestamp).all()
+    transactions = db.session.query(Transaction).filter(
+        Transaction.unspent_points > 0
+    ).order_by(Transaction.timestamp).with_for_update().all()  # Lock rows to prevent concurrent modifications
+
     spent_points = []
     for transaction in transactions:
         if points_to_spend == 0:
@@ -142,7 +158,6 @@ def deduct_point(points_to_spend):
 
         points_to_spend -= spend_amount
 
-    db.session.commit()
     return spent_points
 
 
